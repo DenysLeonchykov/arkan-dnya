@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,26 +13,26 @@
 <body>
   <div id="root"></div>
   <script type="text/babel" data-presets="env,react">
-    const RELAY_URL = "https://arkan-relay.dailyarkan.workers.dev"; // исправлен адрес воркера
+    const RELAY_URL = "https://arkan-relay.dailyarkan.workers.dev";
     const NOTIFY_ENABLED = true;
 
     function startOfDay(date){const d=new Date(date);d.setHours(0,0,0,0);return d;}
     function addDays(date,days){const d=new Date(date);d.setDate(d.getDate()+days);return d;}
     function fmtDateKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-    function fmtHumanDate(d){return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'long',year:'numeric'});}    
+    function fmtHumanDate(d){return d.toLocaleDateString('uk-UA',{day:'2-digit',month:'long',year:'numeric'});}    
     function loadBookings(){try{return JSON.parse(localStorage.getItem('arkan_bookings')||'{}');}catch{return {};}}
     function saveBookings(obj){localStorage.setItem('arkan_bookings',JSON.stringify(obj));}
 
-    // Слоты с вероятностью занятости — до 19:00 занято ~70%, после — свободно чаще
+    // Імітація частково зайнятих слотів — до 19:00 приблизно 70% зайнято, після — більше вільних
     function buildSlotsForDate(date){
       const slots=[];const rng=Math.random;
       for(let h=10;h<22;h++){
         for(let m of ["00","30"]){
           const label=`${String(h).padStart(2,'0')}:${m}`;
           let busy=false;
-          if(h<19){busy=rng()<0.7;} // до 19:00 около 70% занято
-          else if(h<21){busy=rng()<0.4;} // вечером около 40%
-          else {busy=rng()<0.2;} // к концу дня почти свободно
+          if(h<19){busy=rng()<0.7;}
+          else if(h<21){busy=rng()<0.4;}
+          else {busy=rng()<0.2;}
           slots.push({time:label,busy});
         }
       }
@@ -49,7 +49,7 @@
         });
         console.log('Response:', await res.text());
       }catch(e){
-        console.warn('Ошибка отправки уведомления',e);
+        console.warn('Помилка відправлення повідомлення',e);
       }
     }
 
@@ -80,25 +80,25 @@
         const all=loadBookings();
         all[key]=all[key]||{};
         if(all[key][pendingSlot.time]){
-          alert('Слот занят');setShowModal(false);setName('');return;
+          alert('Слот уже зайнято');setShowModal(false);setName('');return;
         }
         const record={name:name.trim(),createdAt:new Date().toISOString()};
         all[key][pendingSlot.time]=record;saveBookings(all);
         notifyBooking({site:'Аркан Дня',date:key,time:pendingSlot.time,name:record.name,createdAt:record.createdAt,tz:Intl.DateTimeFormat().resolvedOptions().timeZone,userAgent:navigator.userAgent});
         setShowModal(false);setName('');setPendingSlot(null);setReloadFlag(x=>x+1);
-        alert(`Запись подтверждена: ${fmtHumanDate(selectedDate)} в ${pendingSlot.time}`);
+        alert(`Запис підтверджено: ${fmtHumanDate(selectedDate)} о ${pendingSlot.time}`);
       }
 
       return (<div className="p-6 max-w-xl mx-auto text-center">
         <h1 className="text-2xl font-bold mb-4">Аркан Дня</h1>
-        <p className="text-stone-400 mb-4">Выберите дату и время для записи. До вечера часть слотов уже занята.</p>
+        <p className="text-stone-400 mb-4">Оберіть дату і час для запису. До вечора більшість слотів зайняті.</p>
         <div className="flex flex-wrap gap-2 justify-center mb-6">
           {days.map(d=>(<button key={d.toISOString()} onClick={()=>setSelectedDate(d)} className={`px-3 py-1 rounded ${d.toDateString()===selectedDate.toDateString()?'bg-emerald-700':'bg-stone-800'}`}>{fmtHumanDate(d)}</button>))}
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {slotsWithBookings.map(slot=>(<button key={slot.time} onClick={()=>openBooking(slot)} disabled={slot.booked} className={`p-2 rounded ${slot.booked?'bg-stone-700':'bg-emerald-700 hover:bg-emerald-600'}`}>{slot.time}{slot.booked?' — Занято':''}</button>))}
+          {slotsWithBookings.map(slot=>(<button key={slot.time} onClick={()=>openBooking(slot)} disabled={slot.booked} className={`p-2 rounded ${slot.booked?'bg-stone-700':'bg-emerald-700 hover:bg-emerald-600'}`}>{slot.time}{slot.booked?' — Зайнято':''}</button>))}
         </div>
-        {showModal&&(<div className="fixed inset-0 bg-black/80 flex items-center justify-center"><div className="bg-stone-900 p-6 rounded-xl max-w-sm w-full"><h2 className="text-lg font-semibold mb-2">Запись на {pendingSlot ? pendingSlot.time : ''}</h2><input value={name} onChange={e=>setName(e.target.value)} placeholder="Ваше имя" className="w-full p-2 rounded bg-stone-800 mb-4"/><div className="flex justify-end gap-2"><button onClick={()=>setShowModal(false)} className="px-4 py-2 bg-stone-700 rounded">Отмена</button><button onClick={confirmBooking} className="px-4 py-2 bg-emerald-600 rounded">Записаться</button></div></div></div>)}
+        {showModal&&(<div className="fixed inset-0 bg-black/80 flex items-center justify-center"><div className="bg-stone-900 p-6 rounded-xl max-w-sm w-full"><h2 className="text-lg font-semibold mb-2">Запис на {pendingSlot ? pendingSlot.time : ''}</h2><input value={name} onChange={e=>setName(e.target.value)} placeholder="Ваше ім’я" className="w-full p-2 rounded bg-stone-800 mb-4"/><div className="flex justify-end gap-2"><button onClick={()=>setShowModal(false)} className="px-4 py-2 bg-stone-700 rounded">Скасувати</button><button onClick={confirmBooking} className="px-4 py-2 bg-emerald-600 rounded">Записатися</button></div></div></div>)}
       </div>);
     }
 
