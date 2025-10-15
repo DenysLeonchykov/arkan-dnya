@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Аркан Дня</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React + Babel (без сборки) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>html,body,#root{height:100%}</style>
+</head>
+<body class="bg-stone-950">
+  <div id="root"></div>
+
+  <!-- В ЭТОТ СКРИПТ ВСТАВЛЯЕМ КОД ПРИЛОЖЕНИЯ С КАНВАСА -->
+  <script type="text/babel" data-presets="react">
+    // === 1. НАСТРОЙКА УВЕДОМЛЕНИЙ (без n8n) ===
+    // Адрес твоего Cloudflare Worker (из Часть B, шаг B8)
+    const RELAY_URL = "";           // <-- ВСТАВЬ СЮДА URL воркера
+    const NOTIFY_ENABLED = true;
+
+    async function notifyBooking(payload) {
+      if (!NOTIFY_ENABLED || !RELAY_URL) return;
+      try {
+        await fetch(RELAY_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (e) {
+        console.warn("Не удалось отправить уведомление в Telegram через прокси:", e);
+      }
+    }
+
+    // === 2. СЮДА ВСТАВЬ КОД КОМПОНЕНТА ИЗ КАНВАСА ===
+    // Открой в канвасе файл «Аркан Дня — Мини-сайт Записи» и СКОПИРУЙ ВСЕ содержимое.
+    // Затем:
+    // 2.1. УДАЛИ из первой строки импорт:  `import React, { ... } from "react";`
+    //      (в браузере React уже подключён через CDN)
+    // 2.2. УДАЛИ `export default` перед функцией (просто `function ArkhanDnyaApp() { ... }`)
+    // 2.3. ВВЕРХУ файла замени блок с WEBHOOK_URL на код уведомлений выше (RELAY_URL).
+    // 2.4. Оставь весь остальной код как есть (верстка, логика, журнал и т.д.).
+
+    /* ====== ВСТАВЬ ТУТ КОД ИЗ КАНВАСА (ПОСЛЕ ПРАВОК ПУНКТОВ 2.1–2.3) ====== */
+
+    // === 3. МОНТИРУЕМ ПРИЛОЖЕНИЕ ===
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ArkhanDnyaApp />);
+  </script>
+</body>
+</html>
