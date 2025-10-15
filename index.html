@@ -13,7 +13,7 @@
 <body>
   <div id="root"></div>
   <script type="text/babel" data-presets="env,react">
-    const RELAY_URL = "https://dailyarkan.workers.dev";
+    const RELAY_URL = "https://arkan-relay.dailyarkan.workers.dev/";
     const NOTIFY_ENABLED = true;
 
     function startOfDay(date){const d=new Date(date);d.setHours(0,0,0,0);return d;}
@@ -22,7 +22,22 @@
     function fmtHumanDate(d){return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'long',year:'numeric'});}
     function loadBookings(){try{return JSON.parse(localStorage.getItem('arkan_bookings')||'{}');}catch{return {};}}
     function saveBookings(obj){localStorage.setItem('arkan_bookings',JSON.stringify(obj));}
-    function buildSlotsForDate(date){const slots=[];for(let h=10;h<22;h++){slots.push({time:`${String(h).padStart(2,'0')}:00`});slots.push({time:`${String(h).padStart(2,'0')}:30`});}return slots;}
+
+    // Слоты с вероятностью занятости — до 19:00 занято ~70%, после — свободно чаще
+    function buildSlotsForDate(date){
+      const slots=[];const rng=Math.random;
+      for(let h=10;h<22;h++){
+        for(let m of ["00","30"]){
+          const label=`${String(h).padStart(2,'0')}:${m}`;
+          let busy=false;
+          if(h<19){busy=rng()<0.7;} // до 19:00 около 70% занято
+          else if(h<21){busy=rng()<0.4;} // вечером около 40%
+          else {busy=rng()<0.2;} // к концу дня почти свободно
+          slots.push({time:label,busy});
+        }
+      }
+      return slots;
+    }
 
     async function notifyBooking(payload){if(!NOTIFY_ENABLED||!RELAY_URL)return;try{await fetch(RELAY_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){console.warn('Ошибка отправки уведомления',e);}}
 
@@ -36,14 +51,22 @@
       const days=React.useMemo(()=>{const arr=[];for(let i=0;i<15;i++)arr.push(addDays(startOfDay(new Date()),i));return arr;},[]);
       const slots=React.useMemo(()=>buildSlotsForDate(selectedDate),[selectedDate,reloadFlag]);
       const bookings=React.useMemo(()=>loadBookings(),[reloadFlag]);
-      const slotsWithBookings=React.useMemo(()=>{const key=fmtDateKey(selectedDate);const bookedForDay=bookings[key]||{};return slots.map(s=>{const b=bookedForDay[s.time]||null;if(b)return {...s,booked:true,bookedBy:b.name};return s;});},[slots,bookings,selectedDate]);
+      const slotsWithBookings=React.useMemo(()=>{
+        const key=fmtDateKey(selectedDate);
+        const bookedForDay=bookings[key]||{};
+        return slots.map(s=>{
+          const b=bookedForDay[s.time]||null;
+          if(b)return {...s,booked:true,bookedBy:b.name};
+          return {...s,booked:s.busy,bookedBy:s.busy?'—':''};
+        });
+      },[slots,bookings,selectedDate]);
 
-      function openBooking(slot){setPendingSlot(slot);setShowModal(true);}
+      function openBooking(slot){if(slot.booked)return;setPendingSlot(slot);setShowModal(true);}
       function confirmBooking(){if(!name.trim()||!pendingSlot)return;const key=fmtDateKey(selectedDate);const all=loadBookings();all[key]=all[key]||{};if(all[key][pendingSlot.time]){alert('Слот занят');setShowModal(false);setName('');return;}const record={name:name.trim(),createdAt:new Date().toISOString()};all[key][pendingSlot.time]=record;saveBookings(all);notifyBooking({site:'Аркан Дня',date:key,time:pendingSlot.time,name:record.name,createdAt:record.createdAt,tz:Intl.DateTimeFormat().resolvedOptions().timeZone,userAgent:navigator.userAgent});setShowModal(false);setName('');setPendingSlot(null);setReloadFlag(x=>x+1);alert(`Запись подтверждена: ${fmtHumanDate(selectedDate)} в ${pendingSlot.time}`);}
 
       return (<div className="p-6 max-w-xl mx-auto text-center">
         <h1 className="text-2xl font-bold mb-4">Аркан Дня</h1>
-        <p className="text-stone-400 mb-4">Выберите дату и время для записи.</p>
+        <p className="text-stone-400 mb-4">Выберите дату и время для записи. До вечера часть слотов уже занята.</p>
         <div className="flex flex-wrap gap-2 justify-center mb-6">
           {days.map(d=>(<button key={d.toISOString()} onClick={()=>setSelectedDate(d)} className={`px-3 py-1 rounded ${d.toDateString()===selectedDate.toDateString()?'bg-emerald-700':'bg-stone-800'}`}>{fmtHumanDate(d)}</button>))}
         </div>
