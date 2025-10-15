@@ -13,13 +13,13 @@
 <body>
   <div id="root"></div>
   <script type="text/babel" data-presets="env,react">
-    const RELAY_URL = "https://arkan-relay.dailyarkan.workers.dev/";
+    const RELAY_URL = "https://arkan-relay.dailyarkan.workers.dev"; // исправлен адрес воркера
     const NOTIFY_ENABLED = true;
 
     function startOfDay(date){const d=new Date(date);d.setHours(0,0,0,0);return d;}
     function addDays(date,days){const d=new Date(date);d.setDate(d.getDate()+days);return d;}
     function fmtDateKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-    function fmtHumanDate(d){return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'long',year:'numeric'});}
+    function fmtHumanDate(d){return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'long',year:'numeric'});}    
     function loadBookings(){try{return JSON.parse(localStorage.getItem('arkan_bookings')||'{}');}catch{return {};}}
     function saveBookings(obj){localStorage.setItem('arkan_bookings',JSON.stringify(obj));}
 
@@ -39,7 +39,19 @@
       return slots;
     }
 
-    async function notifyBooking(payload){if(!NOTIFY_ENABLED||!RELAY_URL)return;try{await fetch(RELAY_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){console.warn('Ошибка отправки уведомления',e);}}
+    async function notifyBooking(payload){
+      if(!NOTIFY_ENABLED||!RELAY_URL)return;
+      try{
+        const res = await fetch(RELAY_URL,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(payload)
+        });
+        console.log('Response:', await res.text());
+      }catch(e){
+        console.warn('Ошибка отправки уведомления',e);
+      }
+    }
 
     function ArkhanDnyaApp(){
       const [selectedDate,setSelectedDate]=React.useState(startOfDay(new Date()));
@@ -62,7 +74,20 @@
       },[slots,bookings,selectedDate]);
 
       function openBooking(slot){if(slot.booked)return;setPendingSlot(slot);setShowModal(true);}
-      function confirmBooking(){if(!name.trim()||!pendingSlot)return;const key=fmtDateKey(selectedDate);const all=loadBookings();all[key]=all[key]||{};if(all[key][pendingSlot.time]){alert('Слот занят');setShowModal(false);setName('');return;}const record={name:name.trim(),createdAt:new Date().toISOString()};all[key][pendingSlot.time]=record;saveBookings(all);notifyBooking({site:'Аркан Дня',date:key,time:pendingSlot.time,name:record.name,createdAt:record.createdAt,tz:Intl.DateTimeFormat().resolvedOptions().timeZone,userAgent:navigator.userAgent});setShowModal(false);setName('');setPendingSlot(null);setReloadFlag(x=>x+1);alert(`Запись подтверждена: ${fmtHumanDate(selectedDate)} в ${pendingSlot.time}`);}
+      function confirmBooking(){
+        if(!name.trim()||!pendingSlot)return;
+        const key=fmtDateKey(selectedDate);
+        const all=loadBookings();
+        all[key]=all[key]||{};
+        if(all[key][pendingSlot.time]){
+          alert('Слот занят');setShowModal(false);setName('');return;
+        }
+        const record={name:name.trim(),createdAt:new Date().toISOString()};
+        all[key][pendingSlot.time]=record;saveBookings(all);
+        notifyBooking({site:'Аркан Дня',date:key,time:pendingSlot.time,name:record.name,createdAt:record.createdAt,tz:Intl.DateTimeFormat().resolvedOptions().timeZone,userAgent:navigator.userAgent});
+        setShowModal(false);setName('');setPendingSlot(null);setReloadFlag(x=>x+1);
+        alert(`Запись подтверждена: ${fmtHumanDate(selectedDate)} в ${pendingSlot.time}`);
+      }
 
       return (<div className="p-6 max-w-xl mx-auto text-center">
         <h1 className="text-2xl font-bold mb-4">Аркан Дня</h1>
