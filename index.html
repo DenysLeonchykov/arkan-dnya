@@ -12,7 +12,7 @@
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel" data-presets="react">
+  <script type="text/babel" data-presets="env,react">
     const RELAY_URL = "https://dailyarkan.workers.dev";
     const NOTIFY_ENABLED = true;
 
@@ -45,12 +45,12 @@
         <h1 className="text-2xl font-bold mb-4">Аркан Дня</h1>
         <p className="text-stone-400 mb-4">Выберите дату и время для записи.</p>
         <div className="flex flex-wrap gap-2 justify-center mb-6">
-          {days.map(d=>(<button key={d} onClick={()=>setSelectedDate(d)} className={`px-3 py-1 rounded ${d.toDateString()===selectedDate.toDateString()?'bg-emerald-700':'bg-stone-800'}`}>{fmtHumanDate(d)}</button>))}
+          {days.map(d=>(<button key={d.toISOString()} onClick={()=>setSelectedDate(d)} className={`px-3 py-1 rounded ${d.toDateString()===selectedDate.toDateString()?'bg-emerald-700':'bg-stone-800'}`}>{fmtHumanDate(d)}</button>))}
         </div>
         <div className="grid grid-cols-2 gap-2">
           {slotsWithBookings.map(slot=>(<button key={slot.time} onClick={()=>openBooking(slot)} disabled={slot.booked} className={`p-2 rounded ${slot.booked?'bg-stone-700':'bg-emerald-700 hover:bg-emerald-600'}`}>{slot.time}{slot.booked?' — Занято':''}</button>))}
         </div>
-        {showModal&&(<div className="fixed inset-0 bg-black/80 flex items-center justify-center"><div className="bg-stone-900 p-6 rounded-xl max-w-sm w-full"><h2 className="text-lg font-semibold mb-2">Запись на {pendingSlot?.time}</h2><input value={name} onChange={e=>setName(e.target.value)} placeholder="Ваше имя" className="w-full p-2 rounded bg-stone-800 mb-4"/><div className="flex justify-end gap-2"><button onClick={()=>setShowModal(false)} className="px-4 py-2 bg-stone-700 rounded">Отмена</button><button onClick={confirmBooking} className="px-4 py-2 bg-emerald-600 rounded">Записаться</button></div></div></div>)}
+        {showModal&&(<div className="fixed inset-0 bg-black/80 flex items-center justify-center"><div className="bg-stone-900 p-6 rounded-xl max-w-sm w-full"><h2 className="text-lg font-semibold mb-2">Запись на {pendingSlot ? pendingSlot.time : ''}</h2><input value={name} onChange={e=>setName(e.target.value)} placeholder="Ваше имя" className="w-full p-2 rounded bg-stone-800 mb-4"/><div className="flex justify-end gap-2"><button onClick={()=>setShowModal(false)} className="px-4 py-2 bg-stone-700 rounded">Отмена</button><button onClick={confirmBooking} className="px-4 py-2 bg-emerald-600 rounded">Записаться</button></div></div></div>)}
       </div>);
     }
 
