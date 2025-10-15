@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Аркан Дня</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React + Babel (без сборки) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>html,body,#root{height:100%}</style>
+</head>
+<body class="bg-stone-950">
+  <div id="root"></div>
+
+  <!-- В ЭТОТ СКРИПТ ВСТАВЛЯЕМ КОД ПРИЛОЖЕНИЯ С КАНВАСА -->
+  <script type="text/babel" data-presets="react">
+    // === 1. НАСТРОЙКА УВЕДОМЛЕНИЙ (без n8n) ===
+    // Адрес твоего Cloudflare Worker (из Часть B, шаг B8)
+    const RELAY_URL = "https://dailyarkan.workers.dev";           // <-- ВСТАВЬ СЮДА URL воркера
+    const NOTIFY_ENABLED = true;
+
+    async function notifyBooking(payload) {
+      if (!NOTIFY_ENABLED || !RELAY_URL) return;
+      try {
+        await fetch(RELAY_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (e) {
+        console.warn("Не удалось отправить уведомление в Telegram через прокси:", e);
+      }
+    }
+
+    // === 2. СЮДА ВСТАВЬ КОД КОМПОНЕНТА ИЗ КАНВАСА ===
+    // Открой в канвасе файл «Аркан Дня — Мини-сайт Записи» и СКОПИРУЙ ВСЕ содержимое.
+    // Затем:
+    // 2.1. УДАЛИ из первой строки импорт:  `import React, { ... } from "react";`
+    //      (в браузере React уже подключён через CDN)
+    // 2.2. УДАЛИ `export default` перед функцией (просто `function ArkhanDnyaApp() { ... }`)
+    // 2.3. ВВЕРХУ файла замени блок с WEBHOOK_URL на код уведомлений выше (RELAY_URL).
+    // 2.4. Оставь весь остальной код как есть (верстка, логика, журнал и т.д.).
+
+    /* ====== ВСТАВЬ ТУТ КОД ИЗ КАНВАСА (ПОСЛЕ ПРАВОК ПУНКТОВ 2.1–2.3) ====== */
+
+
+// === Настройки уведомлений (через Cloudflare Worker) ===
+
+
+import React, { useEffect, useMemo, useState } from "react";
+
+// === Вспомогательные функции ===
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+function fmtDateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+function fmtHumanDate(d) {
+  return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" });
+}
+function loadBookings() {
+  try {
+    return JSON.parse(localStorage.getItem("arkan_bookings") || "{}");
+  } catch {
+    return {};
+  }
+}
+function saveBookings(obj) {
+  localStorage.setItem("arkan_bookings", JSON.stringify(obj));
+}
+function buildSlotsForDate(date) {
+  const slots = [];
+  for (let h = 10; h < 22; h++) {
+    slots.push({ time: `${String(h).padStart(2, "0")}:00` });
+    slots.push({ time: `${String(h).padStart(2, "0")}:30` });
+  }
+  return slots;
+}
+
+// === Настройки уведомлений (через Cloudflare Worker) ===
+
+async function notifyBooking(payload) {
+  if (!NOTIFY_ENABLED || !RELAY_URL) return;
+  try {
+    await fetch(RELAY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    console.warn("Не удалось отправить уведомление в Telegram через воркер:", e);
+  }
+}
+
+export default function ArkhanDnyaApp() {
+  const [selectedDate, setSelectedDate] = useState(startOfDay(new Date()));
+  const [name, setName] = useState("");
+  const [pendingSlot, setPendingSlot] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [reloadFlag, setReloadFlag] = useState(0);
+  const [view, setView] = useState("book");
+
+  const days = useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < 15; i++) arr.push(addDays(startOfDay(new Date()), i));
+    return arr;
+  }, []);
+
+  const slots = useMemo(() => buildSlotsForDate(selectedDate), [selectedDate, reloadFlag]);
+  const bookings = useMemo(() => loadBookings(), [reloadFlag]);
+
+  const slotsWithBookings = useMemo(() => {
+    const key = fmtDateKey(selectedDate);
+    const bookedForDay = bookings[key] || {};
+    return slots.map((s) => {
+      const b = bookedForDay[s.time] || null;
+      if (b) return { ...s, booked: true, bookedBy: b.name };
+      return s;
+    });
+  }, [slots, bookings, selectedDate]);
+
+  const todaysCount = useMemo(() => Object.keys(bookings[fmtDateKey(selectedDate)] || {}).length, [bookings, selectedDate]);
+  const totalCount = useMemo(() => Object.values(bookings).reduce((acc, day) => acc + Object.keys(day || {}).length, 0), [bookings]);
+
+  function openBooking(slot) {
+    setPendingSlot(slot);
+    setShowModal(true);
+  }
+
+  function confirmBooking() {
+    if (!name.trim() || !pendingSlot) return;
+    const key = fmtDateKey(selectedDate);
+    const all = loadBookings();
+    all[key] = all[key] || {};
+    if (all[key][pendingSlot.time]) {
+      alert("Увы, слот уже занят. Выберите другой.");
+      setShowModal(false);
+      setName("");
+      return;
+    }
+    const record = { name: name.trim(), createdAt: new Date().toISOString() };
+    all[key][pendingSlot.time] = record;
+    saveBookings(all);
+
+    notifyBooking({
+      site: "Аркан Дня",
+      date: key,
+      time: pendingSlot.time,
+      name: record.name,
+      createdAt: record.createdAt,
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      userAgent: navigator.userAgent,
+    });
+
+    setShowModal(false);
+    setName("");
+    setPendingSlot(null);
+    setReloadFlag((x) => x + 1);
+    setTimeout(() => alert(`Запись подтверждена: ${fmtHumanDate(selectedDate)} в ${pendingSlot.time}`), 0);
+  }
+  
+}
+// остальная часть приложения остаётся без изменений...
+
+    // === 3. МОНТИРУЕМ ПРИЛОЖЕНИЕ ===
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ArkhanDnyaApp />);
+  </script>
+</body>
+</html>
