@@ -1,0 +1,38 @@
+name: Deploy Worker
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./arkan-relay
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Sanity-check: убеждаемся, что main-скрипт на месте
+      - name: List files
+        run: |
+          pwd
+          ls -la
+          cat wrangler.jsonc || true
+
+      # Sanity-check: есть ли секреты (не печатаем значение, только проверка наличия)
+      - name: Check secrets presence
+        shell: bash
+        run: |
+          test -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" || (echo "❌ CLOUDFLARE_API_TOKEN missing" && exit 1)
+          echo "✅ CLOUDFLARE_API_TOKEN is set"
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # accountId можно не указывать, если он уже в wrangler.jsonc
+          workingDirectory: ./arkan-relay
+          command: deploy
