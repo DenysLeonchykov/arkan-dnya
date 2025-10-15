@@ -49,6 +49,49 @@
 // === Настройки уведомлений (через Cloudflare Worker) ===
 
 
+import React, { useEffect, useMemo, useState } from "react";
+
+// === Вспомогательные функции ===
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+function fmtDateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+function fmtHumanDate(d) {
+  return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" });
+}
+function loadBookings() {
+  try {
+    return JSON.parse(localStorage.getItem("arkan_bookings") || "{}");
+  } catch {
+    return {};
+  }
+}
+function saveBookings(obj) {
+  localStorage.setItem("arkan_bookings", JSON.stringify(obj));
+}
+function buildSlotsForDate(date) {
+  const slots = [];
+  for (let h = 10; h < 22; h++) {
+    slots.push({ time: `${String(h).padStart(2, "0")}:00` });
+    slots.push({ time: `${String(h).padStart(2, "0")}:30` });
+  }
+  return slots;
+}
+
+// === Настройки уведомлений (через Cloudflare Worker) ===
+
 async function notifyBooking(payload) {
   if (!NOTIFY_ENABLED || !RELAY_URL) return;
   try {
@@ -130,7 +173,6 @@ export default function ArkhanDnyaApp() {
   }
   
 }
-
 // остальная часть приложения остаётся без изменений...
 
     // === 3. МОНТИРУЕМ ПРИЛОЖЕНИЕ ===
